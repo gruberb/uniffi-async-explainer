@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 465" role="img">
+<title>Async frees the calling thread while Rust waits</title>
+<desc>The bindings create a Rust future and poll it. When Rust needs to wait, the call returns and frees the thread. A callback asks the bindings to try again. Once the future finishes, the bindings collect its result and release it.</desc>
+<style>text { font: 20px Arial, sans-serif; fill: #152a40; }
+.box-title { font-weight: 600; font-size: 23px; }
+.box rect { fill: #e7ecfa; stroke: #b9c6e9; stroke-width: 1.5px; }
+.foreign rect { fill: #e8f3ee; stroke: #abcbbd; }
+.bridge rect { fill: #f0eef8; stroke: #c9c2de; }
+.wait rect { fill: #f8eded; stroke: #d4b3b3; }
+.arrow { fill: none; stroke: #536179; stroke-width: 2px; }
+.dashed { stroke-dasharray: 6 5; }
+.edge-label { font-size: 19px; }
+.lane-title { font-size: 24px; font-weight: 600; }
+.lifeline { fill: none; stroke: #b4bed0; stroke-width: 2px; stroke-dasharray: 4 5; }
+.idle-band { fill: #e8f3ee; }
+.idle-text { font-size: 20px; fill: #20583f; }</style>
+<defs>
+<marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+<path d="M0 0 L8 4 L0 8 z" fill="#536179"/>
+</marker>
+</defs>
+<text x="180" y="25" class="lane-title" text-anchor="middle">Generated Kotlin / Swift loop</text>
+<text x="940" y="25" class="lane-title" text-anchor="middle">Rust</text>
+<path class="lifeline" d="M180,40 V445 M940,40 V445"/>
+<path class="arrow " d="M180,65 L940,65" marker-end="url(#arrow)"/>
+<text x="560" y="57" class="edge-label" text-anchor="middle">Create the future for this call.</text>
+<path class="arrow " d="M940,95 L180,95" marker-end="url(#arrow)"/>
+<text x="560" y="87" class="edge-label" text-anchor="middle">Here is a handle for finding it again.</text>
+<path class="arrow " d="M180,145 L940,145" marker-end="url(#arrow)"/>
+<text x="560" y="137" class="edge-label" text-anchor="middle">Run it until it finishes or needs to wait. (poll)</text>
+<path class="arrow " d="M940,175 L180,175" marker-end="url(#arrow)"/>
+<text x="560" y="167" class="edge-label" text-anchor="middle">It needs to wait, so this call returns.</text>
+<path class="arrow " d="M940,267 L180,267" marker-end="url(#arrow)"/>
+<text x="560" y="259" class="edge-label" text-anchor="middle">The awaited operation made progress. Please try again.</text>
+<path class="arrow " d="M180,307 L940,307" marker-end="url(#arrow)"/>
+<text x="560" y="299" class="edge-label" text-anchor="middle">Run the future again. (poll)</text>
+<path class="arrow " d="M940,337 L180,337" marker-end="url(#arrow)"/>
+<text x="560" y="329" class="edge-label" text-anchor="middle">The future has finished.</text>
+<path class="arrow " d="M180,377 L940,377" marker-end="url(#arrow)"/>
+<text x="560" y="369" class="edge-label" text-anchor="middle">Give me the result. (complete)</text>
+<path class="arrow " d="M940,407 L180,407" marker-end="url(#arrow)"/>
+<text x="560" y="399" class="edge-label" text-anchor="middle">Here is the value, or the error if it failed.</text>
+<path class="arrow " d="M180,440 L940,440" marker-end="url(#arrow)"/>
+<text x="560" y="432" class="edge-label" text-anchor="middle">Release the future. (free)</text>
+<rect class="idle-band" x="15" y="194" width="1090" height="49" rx="6"/>
+<text x="560" y="225" class="idle-text" text-anchor="middle">The Kotlin coroutine or Swift Task pauses. Rust keeps the future; the thread is free.</text>
+</svg>

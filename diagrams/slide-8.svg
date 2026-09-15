@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 425" role="img"><title>Kotlin and Swift cancellation differ</title><desc>Without an interrupt API, cancelling a Kotlin Job or Swift Task cannot interrupt a synchronous Rust call. Between async polls, Kotlin cancellation runs finally and frees the future. The inspected Swift helper keeps waiting for Rust because it does not connect Task cancellation to cleanup. A long poll can block either platform.</desc><style>text {font:20px Arial,sans-serif;fill:#152a40}.heading{font-size:23px;font-weight:600}.box rect{fill:#e7ecfa;stroke:#b9c6e9;stroke-width:1.5px}.app rect{fill:#e8f3ee;stroke:#abcbbd}.sync rect{fill:#f8eded;stroke:#d4b3b3}.bridge rect{fill:#f0eef8;stroke:#c9c2de}.arrow{fill:none;stroke:#536179;stroke-width:2px}.green{fill:#20583f}</style><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#536179"/></marker></defs>
+<text x="0" y="25" class="" text-anchor="start">Time moves to the right</text>
+<path class="arrow" d="M220 19 H465" marker-end="url(#arrow)"/>
+<text x="735" y="25" class="heading" text-anchor="middle">Caller cancels Job / Task</text>
+<text x="0" y="96" class="heading" text-anchor="start">Sync call</text>
+<text x="0" y="125" class="" text-anchor="start">Kotlin / Swift</text>
+<g class="box sync"><rect x="220" y="63" width="900" height="79" rx="8"/><text x="238" y="92" class="heading" text-anchor="start">Rust occupies the calling thread.</text><text x="238" y="119" class="" text-anchor="start">Without an interrupt API, the call keeps running.</text></g>
+<text x="0" y="204" class="heading" text-anchor="start">Async / Kotlin</text>
+<text x="0" y="233" class="" text-anchor="start">Generated helper</text>
+<rect x="320" y="174" width="415" height="79" fill="#e8f3ee"/>
+<g class="box "><rect x="220" y="174" width="100" height="79" rx="8"/><text x="238" y="203" class="heading" text-anchor="start">poll()</text></g>
+<text x="345" y="204" class="" text-anchor="start">Waiting; poll has returned.</text>
+<text x="345" y="233" class="" text-anchor="start">The thread is free.</text>
+<path class="arrow" d="M735 214 H765" marker-end="url(#arrow)"/>
+<g class="box app"><rect x="775" y="174" width="345" height="79" rx="8"/><text x="793" y="203" class="heading" text-anchor="start">finally frees the future.</text><text x="793" y="230" class="" text-anchor="start">It will not be polled again.</text></g>
+<text x="0" y="315" class="heading" text-anchor="start">Async / Swift</text>
+<text x="0" y="344" class="" text-anchor="start">Generated helper</text>
+<rect x="320" y="285" width="415" height="79" fill="#e8f3ee"/>
+<g class="box "><rect x="220" y="285" width="100" height="79" rx="8"/><text x="238" y="314" class="heading" text-anchor="start">poll()</text></g>
+<text x="345" y="315" class="" text-anchor="start">Waiting; poll has returned.</text>
+<text x="345" y="344" class="" text-anchor="start">The thread is free.</text>
+<path class="arrow" d="M735 325 H765" marker-end="url(#arrow)"/>
+<g class="box sync"><rect x="775" y="285" width="345" height="79" rx="8"/><text x="793" y="314" class="heading" text-anchor="start">Keeps waiting for Rust.</text><text x="793" y="341" class="" text-anchor="start">Task cancellation is not wired in.</text></g>
+<path d="M735 42 V375" stroke="#b85454" stroke-width="3" stroke-dasharray="7 5"/>
+<text x="560" y="407" class="" text-anchor="middle">A long poll blocks either platform. Work started elsewhere may continue.</text>
+</svg>

@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 420" role="img">
+<title>The future lives in the app’s memory</title>
+<desc>Each OS thread has a stack. During poll, the Rust calls use that stack. UniFFI owns the boxed future on the Rust heap, including its captured values. The String points to another allocation for its bytes. Kotlin or Swift keeps the waiting coroutine or task and a handle to the future. All this memory belongs to the same app process.</desc>
+<style>text { font: 20px Arial, sans-serif; fill: #152a40; }
+.box-title { font-weight: 600; font-size: 23px; }
+.box rect { fill: #e7ecfa; stroke: #b9c6e9; stroke-width: 1.5px; }
+.foreign rect { fill: #e8f3ee; stroke: #abcbbd; }
+.bridge rect { fill: #f0eef8; stroke: #c9c2de; }
+.wait rect { fill: #f8eded; stroke: #d4b3b3; }
+.arrow { fill: none; stroke: #536179; stroke-width: 2px; }
+.dashed { stroke-dasharray: 6 5; }
+.edge-label { font-size: 19px; }
+.lane-title { font-size: 24px; font-weight: 600; }
+.lifeline { fill: none; stroke: #b4bed0; stroke-width: 2px; stroke-dasharray: 4 5; }
+.idle-band { fill: #e8f3ee; }
+.idle-text { font-size: 20px; fill: #20583f; }</style>
+<defs>
+<marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+<path d="M0 0 L8 4 L0 8 z" fill="#536179"/>
+</marker>
+</defs>
+<rect x="0" y="0" width="1120" height="405" rx="9" fill="#f0f3f9" stroke="#b9c6e9"/>
+<text x="20" y="32" class="lane-title" text-anchor="start">One Fenix or Firefox iOS app process</text>
+<g class="box bridge">
+<rect x="20" y="65" width="310" height="245" rx="8"/>
+<text x="38" y="96" class="box-title" text-anchor="start">A thread’s stack</text>
+<text x="38" y="125" class="" text-anchor="start">A call into Rust uses</text>
+<text x="38" y="150" class="" text-anchor="start">this thread’s stack.</text>
+<text x="38" y="175" class="" text-anchor="start">Its Rust call frames</text>
+<text x="38" y="200" class="" text-anchor="start">go away when poll</text>
+<text x="38" y="225" class="" text-anchor="start">returns.</text>
+</g>
+<g class="box native">
+<rect x="395" y="65" width="330" height="245" rx="8"/>
+<text x="413" y="96" class="box-title" text-anchor="start">Rust heap allocations</text>
+<text x="413" y="125" class="" text-anchor="start">UniFFI owns a boxed future.</text>
+<text x="413" y="150" class="" text-anchor="start">It keeps who and the future</text>
+<text x="413" y="175" class="" text-anchor="start">for the operation it awaits.</text>
+<text x="413" y="200" class="" text-anchor="start">who points to UTF-8 bytes</text>
+<text x="413" y="225" class="" text-anchor="start">in another Rust allocation.</text>
+</g>
+<g class="box foreign">
+<rect x="790" y="65" width="310" height="245" rx="8"/>
+<text x="808" y="96" class="box-title" text-anchor="start">Kotlin / Swift state</text>
+<text x="808" y="125" class="" text-anchor="start">The coroutine or task keeps</text>
+<text x="808" y="150" class="" text-anchor="start">its values and the place</text>
+<text x="808" y="175" class="" text-anchor="start">where it will continue.</text>
+<text x="808" y="200" class="" text-anchor="start">The bindings keep a handle</text>
+<text x="808" y="225" class="" text-anchor="start">for finding the Rust future.</text>
+</g>
+<path class="arrow " d="M330,170 L395,170" marker-end="url(#arrow)"/>
+<text x="362.5" y="159" class="edge-label" text-anchor="middle">poll</text>
+<path class="arrow " d="M790,170 L725,170" marker-end="url(#arrow)"/>
+<text x="757.5" y="159" class="edge-label" text-anchor="middle">handle</text>
+<text x="560" y="365" class="edge-label" text-anchor="middle">These allocations share the app’s process. There is no separate Rust process.</text>
+</svg>

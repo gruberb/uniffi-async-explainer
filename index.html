@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Async Rust across UniFFI</title>
+<link rel="canonical" href="https://gruberb.github.io/uniffi-async-explainer/">
+<link rel="stylesheet" href="vendor/webslides.css">
+<link rel="stylesheet" href="deck.css">
+</head>
+<body>
+<div class="reading-intro">
+<h1>Async Rust across UniFFI</h1>
+<p>
+<a href="index.html">Open slides</a>
+</p>
+</div>
+<main>
+<article id="webslides">
+<section id="section-1" data-slide="1" data-core="true" aria-label="1. Firefox mobile + UniFFI">
+<div class="slide-content">
+<h1>Firefox mobile + UniFFI</h1>
+<p class="lead">Kotlin and Swift can both call it.</p>
+<div class="two-columns">
+<div class="code-example">
+<p class="code-source">
+<a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/fixtures/futures/src/lib.rs#L73-L76" target="_blank" rel="noopener">Rust greeting example</a>
+</p><pre><code>#[uniffi::export]
+pub fn greet(who: String) -&gt; String {
+    format!(&quot;Hello, {who}&quot;)
+}</code></pre></div>
+<div class="intro-copy">
+<p>UniFFI generates code on both sides of the call.</p>
+<p class="muted">The generated Kotlin or Swift code calls a generated Rust entry point.</p>
+</div>
+</div>
+<img class="diagram" src="diagrams/slide-1.svg" width="1120" height="325" alt="The generated Kotlin code is compiled into Fenix and the generated Swift code into Firefox iOS. Both call generated FFI entry points inside the native Rust library, which then call the authored Rust function.">
+<footer class="sources">Sources: <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/fixtures/futures/src/lib.rs#L73-L76" target="_blank" rel="noopener">Rust export</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/kotlin/templates/macros.kt" target="_blank" rel="noopener">Kotlin generator</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_macros/src/export/scaffolding.rs" target="_blank" rel="noopener">Rust scaffolding</a>
+ &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/swift/templates/macros.swift" target="_blank" rel="noopener">Swift generator</a></footer>
+<aside class="speaker-notes">
+<h3>Speaking notes</h3>
+<p class="script">We write this function in Rust. UniFFI generates code on both sides of the call. The generated Kotlin or Swift files are compiled with the app. They call C-compatible entry points that UniFFI generates during Rust compilation. Those entry points live in the same native library as our Rust function. The library is part of the app process, not a separate Rust program.</p>
+<div class="detail">
+<h4>For discussion</h4>
+<p>The Kotlin and Swift calls in the drawing show the public APIs. The C functions underneath have different signatures. We write the component; UniFFI writes the code that connects it to the other language.</p>
+</div>
+</aside>
+</div>
+</section>
+<section id="section-2" data-slide="2" data-core="true" aria-label="2. Synchronous call flow">
+<div class="slide-content">
+<h1>Synchronous call flow</h1>
+<img class="diagram" src="diagrams/slide-4.svg" width="1120" height="405" alt="Kotlin calls Rust through JNA; Swift calls the native C function directly. Each path uses its calling thread. Both generated bindings encode strings into UTF-8 RustBuffers; Rust takes ownership as a String. The result returns through the same calls.">
+<p class="takeaway">In Kotlin and Swift, a synchronous Rust call occupies the thread that called it.<br>If Rust waits for the network, that thread waits too.</p>
+<footer class="sources">Sources: <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_macros/src/export/scaffolding.rs" target="_blank" rel="noopener">Generated call</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/kotlin/templates/NamespaceLibraryTemplate.kt" target="_blank" rel="noopener">JNA registration</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/kotlin/templates/StringHelper.kt" target="_blank" rel="noopener">Kotlin string converter</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_core/src/ffi_converter_impls.rs" target="_blank" rel="noopener">Rust string converter</a>
+ &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/swift/templates/StringHelper.swift#L23-L32" target="_blank" rel="noopener">Swift string converter</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/swift/templates/macros.swift#L81-L92" target="_blank" rel="noopener">Swift native call</a></footer>
+<aside class="speaker-notes">
+<h3>Speaking notes</h3>
+<p class="script">Kotlin reaches Rust through JNA. Swift calls the native C function directly. In either app, the call stays on the thread that made it. Both generated bindings turn text into UTF-8 bytes in a RustBuffer; Rust takes ownership as a String. The result follows the return path. If Rust waits for the network, that thread waits too. Calling from a worker keeps this wait off the UI thread.</p>
+<div class="detail">
+<h4>For discussion</h4>
+<p>The buffer also says how much memory was allocated for it. A string passed on its own uses the buffer’s length. If a string sits inside a record, its encoded data includes a separate length. The same-thread drawing follows one call; the Rust function can still start other work on other threads.</p>
+<p>During a synchronous call, ordinary call-local state uses that thread’s stack or registers. A Rust <code>String</code> owns a separate allocation for its UTF-8 bytes. Heap objects can outlive a call when another object keeps ownership of them; a synchronous return does not empty the Rust heap. The compiler can optimize the exact placement of local values.</p></div>
+</aside>
+</div>
+</section>
+<section id="section-3" data-slide="3" data-core="true" aria-label="3. Async Rust call">
+<div class="slide-content">
+<h1>Async Rust call</h1>
+<p class="lead">Rust compiles this function into a state machine. Calling it creates a future.</p>
+<div class="code-example">
+<p class="code-source">
+<a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/fixtures/futures/src/lib.rs#L97-L102" target="_blank" rel="noopener">Simplified example adapted from the Rust async export</a>
+</p><pre><code>#[uniffi::export]
+pub async fn greet_async(who: String) -&gt; String {
+    black_box().await; // The next slide fills in this part.
+
+    format!(&quot;Hello, {who}!&quot;)
+}</code></pre></div>
+<img class="diagram" src="diagrams/slide-5.svg" width="1120" height="270" alt="The future first owns who. While black_box is pending, it keeps the awaited future and the name. A later poll can finish the operation and return the greeting. The diagram shows conceptual states, not the exact compiler-generated layout.">
+<p class="takeaway">A future has no thread or runtime of its own.<br>UniFFI’s generated Kotlin or Swift code calls <code>poll</code> to make progress.</p>
+<footer class="sources">Sources: <a href="https://doc.rust-lang.org/reference/items/functions.html#async-functions" target="_blank" rel="noopener">Rust async semantics</a> &nbsp; <a href="https://doc.rust-lang.org/std/future/trait.Future.html" target="_blank" rel="noopener">Future::poll</a>
+</footer>
+<aside class="speaker-notes">
+<h3>Speaking notes</h3>
+<p class="script">Rust turns this async function into a state machine at compile time. Calling the function creates a future that stores its arguments. It does nothing until someone calls poll. Poll runs the next part and saves what is needed if the function has to wait. The future has no thread or runtime of its own. UniFFI’s generated Kotlin or Swift code makes the poll calls. A library used by the future may still require Tokio.</p>
+<div class="detail">
+<h4>For discussion</h4>
+<p>An await may finish immediately. Writing async does not guarantee a pause, work on another thread, or a heap allocation. UniFFI does put its future on the heap. A library used by that future may still require Tokio or another service to watch for events and run the future again.</p>
+<p>The displayed greet_async function is an illustrative adaptation of UniFFI’s say_after export: the timer is replaced with black_box().await, and the delay argument is removed. black_box is a placeholder for an async operation, not std::hint::black_box or a complete implementation. The next slide fills it with a call to an async trait implementation supplied by Kotlin or Swift. The original timer explicitly starts a sleeping Rust thread; it does not start Tokio. It has been left out so that its implementation does not distract from how polling works.</p>
+<p>“Static state machine” means the compiler generates a concrete future type and the code for moving between its states. It does not mean a <code>static</code> variable, an immutable value, or a value that must live forever. Its state changes at runtime. Calling an async function creates an instance of that type. <code>poll</code> advances it, but cannot call itself: a caller or executor must invoke it. A hand-written type can implement <code>Future</code> too. The Rust language does not require heap allocation for every future; UniFFI chooses it for this FFI lifetime.</p></div>
+</aside>
+</div>
+</section>
+<section id="section-4" data-slide="4" data-core="true" aria-label="4. What does Rust await? The foreign side">
+<div class="slide-content">
+<h1>What does Rust await? The foreign side</h1>
+<p class="lead">In this proposal, black_box is an async operation supplied by Kotlin or Swift.</p>
+<img class="diagram" src="diagrams/slide-9.svg" width="1120" height="400" alt="Rust can await an async trait method implemented in Kotlin or Swift. The generated Kotlin bridge starts a coroutine; the Swift bridge starts a Task. A result callback sends the value or error back to Rust.">
+<p class="takeaway">The app supplies the operation. UniFFI brings its result back to Rust.<br>The generated bindings can then poll Rust again so the call can continue.</p>
+<footer class="sources">Sources: <a href="https://github.com/mozilla/application-services/blob/ff9a6fa10723864a95613bc97c2b17328484c996/components/merino/src/suggest/http.rs#L71-L83" target="_blank" rel="noopener">Merino handoff</a> &nbsp; <a href="https://github.com/mozilla/application-services/blob/ff9a6fa10723864a95613bc97c2b17328484c996/components/viaduct/src/client.rs#L69-L71" target="_blank" rel="noopener">Sync adapter</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/kotlin/templates/Async.kt#L49-L79" target="_blank" rel="noopener">Reverse launch</a> &nbsp; <a href="https://github.com/mozilla/application-services/blob/ff9a6fa10723864a95613bc97c2b17328484c996/components/viaduct/android/src/main/java/mozilla/appservices/viaduct/FetchBackend.kt" target="_blank" rel="noopener">Android backend</a>
+ &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/swift/templates/Async.swift#L51-L83" target="_blank" rel="noopener">Swift reverse bridge</a> &nbsp; <a href="https://github.com/mozilla/application-services/blob/ff9a6fa10723864a95613bc97c2b17328484c996/components/support/viaduct-hyper/src/lib.rs#L38-L50" target="_blank" rel="noopener">iOS Hyper backend</a></footer>
+<aside class="speaker-notes">
+<h3>Speaking notes</h3>
+<p class="script">This is what goes inside black_box for the proposed approach: Rust awaits an async method implemented by the app. UniFFI’s Kotlin bridge starts a coroutine; its Swift bridge starts a Task. Each runs the app implementation and gives its value or error back to Rust. That result callback is different from the callback asking the app to poll Rust again. These generated tasks also need lifecycle ownership; they do not automatically inherit the original caller’s task.</p>
+<div class="detail">
+<h4>For discussion</h4><p><strong>Proposal:</strong> use async operations supplied by the app as the main way Rust waits for external work. UniFFI already supports foreign async trait implementations. This does not mean every Rust await must call another language, or that all current application-services backends already follow this design.</p><p>The diagram shows UniFFI’s callback capability in both languages. Today’s HTTP backends differ: Android’s Merino path calls through Viaduct into Kotlin FetchBackend, while the iOS configuration described in the design document uses the Rust Hyper backend and its Tokio worker. The HTTP path on iOS is therefore not an example of a Swift-implemented async callback. The synchronous Merino adapter still uses block_on while waiting for the network.</p>
+<p>Kotlin converts the network response into values that can pass through the C interface. Its callback gives those values to Rust through a channel that holds one result. That can wake the Rust future. The upcoming calling timeline shows how Rust’s callback tells Kotlin or Swift when to check the future again.</p>
+<p>OHTTP can make several HTTP requests; the drawing leaves out those extra steps. Choosing Dispatchers.IO for the original caller does not change the dispatcher used by the separate coroutine launched in GlobalScope. The generated Swift bridge creates a new Task; its cancellation is managed through the foreign-future drop hook, rather than automatically inheriting cancellation from the original app caller.</p>
+</div>
+</aside>
+</div>
+</section>
+<section id="section-5" data-slide="5" data-core="true" aria-label="5. Example: the app supplies the async operation">
+<div class="slide-content">
+<h1>Example: the app supplies the async operation</h1>
+<p class="lead">The app gives Rust an AsyncParser. Rust awaits its implementation and returns the result.</p>
+<img class="diagram" src="diagrams/round-trip.svg" width="1120" height="330" alt="A Kotlin or Swift caller passes an AsyncParser and 42 to Rust. Rust awaits the parser supplied by the app. The Kotlin implementation uses delay; the Swift implementation uses Task.sleep. It converts 42 to a String and gives that result back to Rust through UniFFI. The outer async call then returns the String to the original caller.">
+<p class="takeaway">The waiting happens in the app’s async implementation.<br>Rust receives its result and continues.</p>
+<footer class="sources">Sources: <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/fixtures/futures/src/lib.rs#L467-L479" target="_blank" rel="noopener">AsyncParser interface</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/fixtures/futures/src/lib.rs#L495-L498" target="_blank" rel="noopener">Rust call</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/fixtures/futures/tests/bindings/test_futures.kts#L164-L170" target="_blank" rel="noopener">Kotlin implementation</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/fixtures/futures/tests/bindings/test_futures.swift#L191-L197" target="_blank" rel="noopener">Swift implementation</a></footer>
+<aside class="speaker-notes">
+<h3>Speaking notes</h3>
+<p class="script">Here is one call all the way through. The app passes a parser object and the number 42 to an async Rust function. Rust calls an async method on that object, which UniFFI forwards to the Kotlin or Swift implementation. The implementation waits using its own language’s concurrency primitives, then turns 42 into a String. UniFFI gives the result back to Rust. Rust can finish, and the original app caller receives the String. The outer call into Rust and the inner call back into the app are separate async operations connected by generated code.</p>
+<div class="detail">
+<h4>The source behind the example</h4>
+<p><strong>Observation:</strong> UniFFI’s futures tests exercise this path in both languages. The Rust trait is exported with <code>with_foreign</code>, so the application can supply its implementation. The generated async bindings let the app await the outer Rust function while Rust awaits the supplied parser.</p>
+<div class="code-example"><p class="code-source"><a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/fixtures/futures/src/lib.rs#L495-L498" target="_blank" rel="noopener">Rust awaits the implementation supplied by the app</a></p><pre><code>#[uniffi::export]
+async fn as_string_using_trait(obj: Arc&lt;dyn AsyncParser&gt;, delay_ms: i32, value: i32) -&gt; String {
+    obj.as_string(delay_ms, value).await
+}</code></pre></div><div class="code-example"><p class="code-source"><a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/fixtures/futures/tests/bindings/test_futures.kts#L167-L170" target="_blank" rel="noopener">The Kotlin implementation uses Kotlin coroutine primitives</a></p><pre><code>override suspend fun asString(delayMs: Int, value: Int): String {
+    delay(delayMs.toLong())
+    return value.toString()
+}</code></pre></div><div class="code-example"><p class="code-source"><a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/fixtures/futures/tests/bindings/test_futures.swift#L194-L197" target="_blank" rel="noopener">The Swift implementation uses Swift concurrency</a></p><pre><code>func asString(delayMs: Int32, value: Int32) async -&gt; String {
+    try! await Task.sleep(nanoseconds: UInt64(delayMs) * 1_000_000)
+    return String(value)
+}</code></pre></div>
+<p>The <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/fixtures/futures/tests/bindings/test_futures.kts#L200-L203" target="_blank" rel="noopener">Kotlin test</a> and <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/fixtures/futures/tests/bindings/test_futures.swift#L237-L240" target="_blank" rel="noopener">Swift test</a> pass 42 and check that the returned value is the String “42”. The delay parameter makes the callback implementation suspend so the test can exercise waiting. The diagram omits that parameter. Its purpose is to show where the async work lives, not to recommend a timer as an application API.</p>
+<p>The delays here are explicitly implemented using Kotlin <code>delay</code> and Swift <code>Task.sleep</code>. Rust awaits the foreign result. The supplied Swift test uses <code>try!</code>; that is quoted test code, not recommended cancellation handling for an app. The generated reverse bridges still launch a separate Kotlin coroutine or Swift Task, so lifecycle and cancellation need the treatment described later in the deck.</p>
+<p>This is an inspected code example, not a new device test or a claim that the current HTTP backends in both apps already use this path. Network, storage, and other examples can use this arrangement once their operations and ownership have been defined.</p>
+</div>
+</aside>
+</div>
+</section>
+<section id="section-6" data-slide="6" data-core="true" aria-label="6. Async calling timeline">
+<div class="slide-content">
+<h1>Async calling timeline</h1>
+<img class="diagram" src="diagrams/slide-6.svg" width="1120" height="465" alt="The bindings create a Rust future and poll it. When Rust needs to wait, the call returns and frees the thread. A callback asks the bindings to try again. Once the future finishes, the bindings collect its result and release it.">
+<p class="takeaway">Rust calls back to say “try again” or “finished.”<br>The Kotlin or Swift code makes a separate call to get the result.</p>
+<footer class="sources">Sources: <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/kotlin/templates/Async.kt#L15-L40" target="_blank" rel="noopener">Kotlin loop</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_core/src/ffi/rustfuture/future.rs#L205-L218" target="_blank" rel="noopener">Native poll</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/swift/templates/Async.swift#L17-L38" target="_blank" rel="noopener">Swift loop</a>
+</footer>
+<aside class="speaker-notes">
+<h3>Speaking notes</h3>
+<p class="script">The first call creates a future and returns a handle for finding it again. The generated code calls poll to let Rust run. If Rust needs to wait, that call returns and the thread is free to do other work. Later, Rust calls back to ask for another poll. Once Rust says it has finished, the bindings make a separate call to get the result, then release the future.</p>
+<div class="detail">
+<h4>For discussion</h4>
+<p>The drawing shows one wait, not measured durations. The awaited operation can wake Rust before UniFFI has stored the polling callback, or while poll is still running. UniFFI keeps track of that notification so it can call back afterward. The Rust body runs on the thread that called poll. If it takes a long time to return, that thread remains occupied.</p>
+<p>In this path, the generated Kotlin/Swift helper is the driver: its loop invokes the native poll function, waits for a callback, and repeats. Kotlin’s coroutine dispatcher or Swift’s executor schedules that helper. UniFFI does not need to start a Tokio runtime for this loop.</p><div class="code-example"><p class="code-source"><a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/kotlin/templates/Async.kt#L26-L30" target="_blank" rel="noopener">The Kotlin helper calls the native poll function</a></p><pre><code>pollFunc(
+    rustFuture,
+    uniffiRustFutureContinuationCallbackImpl,
+    uniffiContinuationHandleMap.insert(continuation)
+)</code></pre></div></div>
+</aside>
+</div>
+</section>
+<section id="section-7" data-slide="7" data-core="true" aria-label="7. Where does the Rust Future live">
+<div class="slide-content">
+<h1>Where does the Rust Future live</h1>
+<p class="lead">Each thread has its own stack. UniFFI keeps the Rust future on the heap.</p>
+<img class="diagram" src="diagrams/slide-7.svg" width="1120" height="420" alt="Each OS thread has a stack. During poll, the Rust calls use that stack. UniFFI owns the boxed future on the Rust heap, including its captured values. The String points to another allocation for its bytes. Kotlin or Swift keeps the waiting coroutine or task and a handle to the future. All this memory belongs to the same app process.">
+<p class="takeaway">Kotlin or Swift chooses where to call <code>poll</code>; the OS schedules that thread.<br>The future keeps its data between calls, while the Rust call stack comes and goes.</p>
+<footer class="sources">Sources: <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_core/src/ffi/rustfuture/future.rs" target="_blank" rel="noopener">Native state</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/kotlin/templates/Async.kt#L1-L40" target="_blank" rel="noopener">Kotlin continuation map</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/kotlin/templates/HandleMap.kt" target="_blank" rel="noopener">Handle map</a>
+ &nbsp; <a href="https://doc.rust-lang.org/std/string/struct.String.html#representation" target="_blank" rel="noopener">Rust String storage</a></footer>
+<aside class="speaker-notes">
+<h3>Speaking notes</h3>
+<p class="script">All of this memory belongs to the app process. Each thread has its own stack. A poll uses that stack, then returns. UniFFI keeps the future on the Rust heap, so its values survive between polls. In this example, the future stores the name and the operation it is awaiting; the String’s bytes live in another allocation. Kotlin or Swift keeps its own waiting state. Its runtime chooses where to poll, and the OS schedules the thread.</p>
+<div class="detail">
+<h4>For discussion</h4>
+<p>This drawing covers both apps. Kotlin and Swift each keep a continuation that remembers how to resume their waiting code. In Kotlin, the dispatcher chooses where the coroutine runs, while its Job controls cancellation. The handle for a Rust future and the ID for a Kotlin continuation refer to different objects. UniFFI’s type requirements ensure that a future can be polled safely as execution moves between threads.</p>
+<h4>Which owner releases what?</h4><p><strong>OS:</strong> supplies the process address space and schedules its threads. <strong>Threads:</strong> each has its own stack. Crossing the C boundary uses the existing thread; it does not create another stack just for Rust. <strong>Rust/UniFFI:</strong> owns the allocations for the future and Rust values. <strong>Kotlin/Swift:</strong> owns its task or coroutine state and the handle used by the helper.</p><div class="code-example"><p class="code-source"><a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_core/src/ffi/rustfuture/future.rs#L137-L140" target="_blank" rel="noopener">UniFFI allocates and pins the future on the heap</a></p><pre><code>Self {
+    future: Some(Box::pin(wrapped_future)),
+    result: None,
+}</code></pre></div><p>The future’s stored <code>String</code> contains a pointer, length, and capacity; its UTF-8 bytes are in a separate allocation. An awaited operation can also own or share other state. UniFFI’s <code>free</code> drops its inner future and stored result. Any separately shared objects live until their remaining owners release them. A runtime or native library can create and manage threads, but the future itself owns no thread. A <code>Waker</code> requests another poll; it is not a saved Rust call stack.</p></div>
+</aside>
+</div>
+</section>
+<section id="section-8" data-slide="8" data-core="true" aria-label="8. What stays in memory between polls">
+<div class="slide-content">
+<h1>What stays in memory between polls</h1>
+<p class="lead">The stack belongs to the thread. The future keeps the state needed to continue the call.</p>
+<table>
+<tbody>
+<tr><th scope="row">Creating the call</th><td>For <code>greet_async(who)</code>, the future initially owns <code>who</code>. UniFFI puts it in a pinned heap allocation. The String’s pointer, length, and capacity stay with the future; its UTF-8 bytes live in a separate allocation.</td></tr>
+<tr><th scope="row">Running a poll</th><td>The generated Kotlin or Swift code enters Rust on the calling thread. Rust uses that thread’s stack while <code>poll</code> executes. Crossing the FFI boundary does not create a thread.</td></tr>
+<tr><th scope="row">Waiting</th><td>If <code>poll</code> returns <code>Pending</code>, its Rust call frames go away. The future keeps the awaited operation’s future and <code>who</code> for the next poll. Kotlin or Swift keeps its continuation and a handle identifying UniFFI’s Rust allocation.</td></tr>
+<tr><th scope="row">Continuing</th><td>A later poll may run on another thread and use its stack. It accesses the same pinned future. Once Rust finishes, UniFFI stores the result until the bindings collect it and release the handle.</td></tr>
+</tbody>
+</table>
+<p class="takeaway">These allocations share the app’s process, but have different owners and lifetimes.</p>
+<footer class="sources">Sources: <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/fixtures/futures/src/lib.rs#L97-L102" target="_blank" rel="noopener">Source for the simplified greeting example</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_core/src/ffi/rustfuture/future.rs#L104-L153" target="_blank" rel="noopener">Future and result storage</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/kotlin/templates/Async.kt#L15-L40" target="_blank" rel="noopener">Kotlin caller</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/swift/templates/Async.swift#L6-L38" target="_blank" rel="noopener">Swift caller</a> &nbsp; <a href="https://doc.rust-lang.org/std/string/struct.String.html#representation" target="_blank" rel="noopener">String representation</a></footer>
+<aside class="speaker-notes">
+<h3>Speaking notes</h3>
+<p class="script">Think of the future as the operation’s saved state. Calling greet_async gives us a value that owns the name. UniFFI puts that value on the heap and keeps it at a stable address. Polling temporarily uses a thread’s stack. If the awaited operation is still waiting, poll returns and those Rust call frames are gone. The name and the awaited future remain in the state machine, so another poll can continue, even on another thread. Kotlin or Swift also remembers where its own code will resume. Those are separate pieces of state in the same process. Neither side needs to keep a thread blocked just to preserve its local values.</p>
+<div class="detail">
+<h4>What is actually stored?</h4>
+<p>The compiler generates the concrete future type for the illustrative <code>greet_async</code> function. Its captured arguments and the values needed across the await belong to that state machine. Their exact field layout is a compiler detail. UniFFI wraps that future and stores it with <code>Box::pin</code>. Pinning keeps the future’s allocation at a stable address while it is being polled; moving the handle or polling from another thread does not move that allocation.</p>
+<p>The <code>who</code> parameter is a Rust <code>String</code>. It owns a buffer of UTF-8 bytes through a pointer, length, and capacity. That buffer is separate from the allocation holding the future. This distinction is about ownership, not separate address spaces for each language.</p>
+<h4>The Rust handle and the foreign continuation are different things</h4>
+<p>The <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_core/src/ffi/rustfuture/mod.rs#L114-L124" target="_blank" rel="noopener">future handle</a> represents an owned reference to UniFFI’s RustFuture object. That object contains the boxed future and its stored result. The <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_core/src/ffi/handle.rs#L59-L71" target="_blank" rel="noopener">handle implementation</a> turns an Arc pointer into an opaque handle. Kotlin or Swift passes it back to generated FFI functions; application code does not dereference it.</p>
+<p>The generated Kotlin and Swift helpers separately register a continuation so a Rust callback can resume their suspended code. The continuation remembers where the foreign-language computation resumes. A Rust Waker requests another poll. Neither mechanism saves a live Rust call stack. When a poll returns, the thread and its stack still exist, but that invocation’s Rust frames have returned.</p>
+<h4>Finishing changes what UniFFI owns</h4>
+<p>When polling finishes, UniFFI drops the boxed future and stores its lowered result for the bindings to collect:</p>
+<div class="code-example"><p class="code-source"><a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_core/src/ffi/rustfuture/future.rs#L150-L154" target="_blank" rel="noopener">UniFFI replaces the completed future with its result</a></p><pre><code>Poll::Ready(result) =&gt; {
+    self.future = None;
+    self.result = Some(result);
+    true
+}</code></pre></div>
+<p>The generated bindings collect and convert the result, then release the handle. The Kotlin helper does this cleanup in <code>finally</code>; Swift uses <code>defer</code>. Their cancellation behavior differs, as the next slide explains. Shared objects can outlive the future if another owner retains them. A foreign async operation also has Kotlin or Swift state. Its result and drop callbacks connect that state to the Rust future; their ownership must be coordinated during completion and cancellation.</p>
+</div>
+</aside>
+</div>
+</section>
+<section id="section-9" data-slide="9" data-core="true" aria-label="9. Async cancellation differs in Kotlin and Swift">
+<div class="slide-content">
+<h1>Async cancellation differs in Kotlin and Swift</h1>
+<p class="lead">Kotlin can drop the waiting future. Swift’s current helper keeps waiting.</p>
+<img class="diagram" src="diagrams/slide-8.svg" width="1120" height="425" alt="Cancelling a Kotlin Job or Swift Task does not interrupt a synchronous Rust call. Between async polls, Kotlin frees the future; the inspected Swift helper keeps waiting. A long poll still blocks either platform.">
+<p class="takeaway">When the app process ends, both sync and async Rust work stop.<br>The OS may give neither app a chance to run cleanup.</p>
+
+<footer class="sources">Sources: <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/kotlin/templates/Async.kt#L15-L40" target="_blank" rel="noopener">Kotlin cleanup</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_core/src/ffi/rustfuture/future.rs" target="_blank" rel="noopener">Rust free</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_core/src/ffi/foreignfuture.rs" target="_blank" rel="noopener">Foreign drop hook</a> &nbsp; <a href="https://developer.android.com/topic/libraries/architecture/views/coroutines-views" target="_blank" rel="noopener">Lifecycle scopes</a>
+ &nbsp; <a href="https://developer.android.com/guide/components/activities/process-lifecycle" target="_blank" rel="noopener">Android process lifetime</a> &nbsp; <a href="https://developer.apple.com/documentation/uikit/managing-your-app-s-life-cycle" target="_blank" rel="noopener">iOS app lifetime</a> &nbsp; <a href="https://developer.apple.com/documentation/uikit/uiapplicationdelegate/applicationwillterminate(_:)" target="_blank" rel="noopener">iOS termination callback</a> &nbsp; <a href="https://doc.rust-lang.org/std/process/fn.exit.html" target="_blank" rel="noopener">Rust process exit</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/swift/templates/Async.swift#L6-L38" target="_blank" rel="noopener">Swift wait and cleanup</a></footer>
+<aside class="speaker-notes">
+<h3>Speaking notes</h3>
+<p class="script">Async gives us a place to stop between polls. Kotlin’s helper uses that: cancelling its Job can free the Rust future. The inspected Swift helper keeps waiting because Task cancellation is not connected to cleanup. Neither platform can interrupt Rust halfway through a long poll, and work started elsewhere may continue. A synchronous call needs its own interrupt mechanism. When the whole process ends, both stop, without guaranteed cleanup.</p>
+<div class="detail">
+<h4>For discussion</h4>
+<h4>What cancellation stops</h4>
+<p><strong>Observation:</strong> Kotlin’s generated helper waits with <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/kotlin/templates/Async.kt#L23-L39">suspendCancellableCoroutine and calls freeFunc in finally</a>. Cancelling its Job while suspended schedules the coroutine to leave the wait with a cancellation exception. Cleanup does not need another Rust wakeup. See <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/suspend-cancellable-coroutine.html">Kotlin’s cancellation contract</a>.</p>
+<div class="code-example"><p class="code-source"><a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_core/src/ffi/rustfuture/future.rs#L176-L179" target="_blank" rel="noopener">Rust cleanup drops the stored future and result</a></p><pre><code>fn free(&amp;mut self) {
+    self.future = None;
+    self.result = None;
+}</code></pre></div>
+<p><strong>Consequence:</strong> dropping the future stops its remaining async body and runs destructors for values it owns. It does not undo completed side effects or automatically stop independent work. Any independently spawned task, thread, or non-cancellable I/O needs its own lifetime and stop mechanism.</p>
+<p><strong>Limit:</strong> <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_core/src/ffi/rustfuture/future.rs#L205-L218">poll runs Rust inline</a>, and <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_core/src/ffi/rustfuture/future.rs#L235-L240">free needs the same mutex</a>. If a poll blocks for five minutes, cancelling the caller cannot shorten those five minutes. Adding async or await does not guarantee a pause; the future being awaited has to return Pending. <a href="https://doc.rust-lang.org/std/future/trait.Future.html#runtime-characteristics">Rust’s Future contract</a> says poll should return quickly. A busy caller dispatcher or a slow destructor can also delay cleanup.</p>
+<p><strong>Sync can cooperate too:</strong> a synchronous operation can check a cancellation flag or expose an interrupt handle that another thread calls. Application-services already has <a href="https://github.com/mozilla/application-services/blob/ff9a6fa10723864a95613bc97c2b17328484c996/components/support/interrupt/src/sql.rs#L13-L59">SqlInterruptHandle</a>. Cancelling a Kotlin Job or Swift Task alone does not add this mechanism to an ordinary synchronous FFI call.</p>
+<p><strong>Swift differs:</strong> the <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/swift/templates/Async.swift#L6-L38">inspected outbound helper</a> uses withUnsafeContinuation without a task cancellation handler. Cancelling that Swift Task alone does not end its wait and drop the Rust future. The next slide shows the two helpers side by side.</p>
+<p>An Activity stopping, an Activity being destroyed, a ViewModel being cleared, and the process ending are different events. The app decides which event should end a particular operation.</p>
+<img class="diagram" src="diagrams/process-shutdown.svg" width="1120" height="430" alt="Synchronous Rust calls and async futures both live inside the app process. When it terminates, its threads stop and the OS reclaims its stack and heap memory. A new launch cannot resume the old future.">
+<h4>Closing a screen, cancellation, suspension, and process death</h4><p><strong>Closing a screen:</strong> an Activity or view can disappear while the app process stays alive. That does not by itself unload the Rust library. The app’s chosen Job, task, and component lifetimes decide which work is cancelled.</p><p><strong>OS suspension:</strong> while a process is suspended, its threads do not execute, including Rust threads. A stored future stays in memory until the app resumes or the OS discards the process. iOS restricts background execution; Android also limits or freezes cached processes. The presence of a future grants no background execution permission.</p><p><strong>Graceful cleanup:</strong> while the process still runs, normal cancellation and explicit shutdown can drop the Rust future and release resources. That behavior is different from a forced process kill. Kotlin’s helper is cancellable; the inspected Swift helper does not stop waiting merely because its Task was cancelled.</p><img class="diagram" src="diagrams/cancellation.svg" width="1120" height="315" alt="Cancelling a Kotlin Job can free its Rust future and cancel an awaited Kotlin backend job, while a blocking network request may keep running."><p><strong>Process termination:</strong> the OS stops every thread in this process, including any Rust-created worker threads, and reclaims its memory. Android does not guarantee <code>onDestroy</code> on process death, and iOS does not guarantee a final app termination callback. No Rust destructor or coroutine cleanup can be assumed to run after a forced kill. Rust’s explicit <code>process::exit</code> also skips stack destructors.</p><p><strong>After restart:</strong> handles, pointers, call stacks, and futures from the old process are gone. Data already saved to storage, a request already received by a server, or work delegated to an OS service may outlive that process; the original in-process Rust future does not.</p></div>
+</aside>
+</div>
+</section>
+<section id="section-10" data-slide="10" data-core="false" aria-label="10. Kotlin and Swift wait in different ways">
+<div class="slide-content">
+<h1>Kotlin and Swift wait in different ways</h1>
+<div class="two-columns">
+<div>
+<h2>Kotlin / JNA</h2>
+<div class="code-example">
+<p class="code-source">
+<a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/kotlin/templates/Async.kt#L25-L25" target="_blank" rel="noopener">Code that waits for Rust</a>
+</p><pre><code>val pollResult = suspendCancellableCoroutine&lt;Byte&gt; { continuation -&gt;</code></pre></div>
+<div class="code-example">
+<p class="code-source">
+<a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/kotlin/templates/Async.kt#L37-L39" target="_blank" rel="noopener">Code that releases the Rust future</a>
+</p><pre><code>} finally {
+    freeFunc(rustFuture)
+}</code></pre></div>
+</div>
+<div>
+<h2>Swift</h2>
+<div class="code-example">
+<p class="code-source">
+<a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/swift/templates/Async.swift#L23-L23" target="_blank" rel="noopener">Code that waits for Rust</a>
+</p><pre><code>pollResult = await withUnsafeContinuation {</code></pre></div>
+<div class="code-example">
+<p class="code-source">
+<a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/swift/templates/Async.swift#L17-L20" target="_blank" rel="noopener">Code that releases the Rust future</a>
+</p><pre><code>let rustFuture = rustFutureFunc()
+defer {
+    freeFunc(rustFuture)
+}</code></pre></div>
+</div>
+</div>
+<table>
+<thead><tr><th></th><th>Kotlin</th><th>Swift</th></tr></thead>
+<tbody>
+<tr><th>When the caller cancels</th><td>The coroutine can leave the wait.</td><td>The helper continues to wait for Rust.</td></tr>
+<tr><th>When the helper exits</th><td><code>finally</code> releases the Rust future.</td><td><code>defer</code> releases the Rust future.</td></tr>
+</tbody>
+</table>
+<p class="takeaway">Both use the same Rust library, but each language has its own rules for waiting and cancellation.</p>
+<footer class="sources">Sources: <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/kotlin/templates/Async.kt#L15-L40" target="_blank" rel="noopener">Full Kotlin helper</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/swift/templates/Async.swift#L6-L38" target="_blank" rel="noopener">Full Swift helper</a> &nbsp; <a href="https://gruberb.github.io/rabbit-hole-observatory/research/mozilla/uniffi-async/" target="_blank" rel="noopener">Full research</a>
+</footer>
+<aside class="speaker-notes">
+<h3>Speaking notes</h3>
+<p class="script">The generated code uses each language’s own way of waiting. Kotlin can leave this wait when its Job is cancelled, then release the Rust future in finally. This Swift helper keeps waiting for Rust even if its Task is cancelled. It releases the future with defer when it exits. Both call the same Rust functions, but that does not give them identical cancellation behavior.</p>
+<div class="detail">
+<h4>For discussion</h4>
+<p>The code links show the full helper functions around these excerpts. The sources are pinned to UniFFI 0d732ee489c1 and application-services ff9a6fa10723. The report’s FFI tests used release 0.32.1. This primer was not tested on an Android or iOS device.</p>
+</div>
+</aside>
+</div>
+</section>
+<section id="section-11" data-slide="11" data-core="false" aria-label="11. Async Rust removes an extra layer of wrapping in both apps">
+<div class="slide-content">
+<h1>Async Rust removes an extra layer of wrapping in both apps</h1>
+<p class="lead">Generated async bindings replace the code that makes a synchronous call async.</p>
+<img class="diagram" src="diagrams/proposal.svg" width="1120" height="315" alt="Today the app wrapper dispatches a synchronous Rust call. With an async Rust API, generated suspend and async bindings handle the async bridge. The app wrapper can keep its other responsibilities.">
+<h2>Questions the proposal needs to answer</h2>
+<table>
+<tbody>
+<tr><th>App control</th><td>Use app-owned tasks and executors. Put blocking calls on an approved worker queue.</td></tr>
+<tr><th>Cancellation and memory</th><td>Cancel child work and I/O. Keep values alive while callbacks can use them.</td></tr>
+<tr><th>Debugging</th><td>Trace a request across both languages. Test leaving, returning, cancelling, and restarting.</td></tr>
+</tbody>
+</table>
+<p class="takeaway">The wrapper can stay. Its sync-to-async layer can go.<br>Lifecycle, threading, errors, and cancellation still need handling.</p>
+<footer class="sources">Sources: <a href="https://github.com/mozilla-firefox/firefox/blob/38dd46150994b7c806866cfeb199526035162757/mobile/android/android-components/components/service/sync-logins/src/main/java/mozilla/components/service/sync/logins/SyncableLoginsStorage.kt#L170-L174" target="_blank" rel="noopener">Kotlin adapter</a> &nbsp; <a href="https://github.com/mozilla-mobile/firefox-ios/blob/f50207d4d0468b29a24e10e050096763847310e6/firefox-ios/Storage/Rust/RustLogins.swift#L459-L474" target="_blank" rel="noopener">Swift adapter</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/kotlin/templates/macros.kt#L50-L55" target="_blank" rel="noopener">Kotlin generation</a> &nbsp; <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/swift/templates/macros.swift#L187-L189" target="_blank" rel="noopener">Swift generation</a> &nbsp; <a href="https://gruberb.github.io/rabbit-hole-observatory/research/mozilla/uniffi-async/#source-pdf-evolving" target="_blank" rel="noopener">Design document, pp. 7–16</a> &nbsp; <a href="https://gruberb.github.io/rabbit-hole-observatory/research/mozilla/uniffi-async/#source-pdf-android" target="_blank" rel="noopener">Android meeting notes, pp. 1–2</a></footer>
+<aside class="speaker-notes">
+<h3>Speaking notes</h3>
+<p class="script">This is the boilerplate we can remove. Today, Kotlin and Swift wrap generated synchronous bindings so the app can use them asynchronously. Kotlin dispatches the call with withContext; Swift queues it and handles a completion callback. If the Rust API becomes async, UniFFI generates a Kotlin suspend function and a Swift async function. The app wrapper can call those directly, so the code whose only job was to make the sync call async can go. This does not imply deleting the wrapper file. App-specific lifecycle, threading, errors, and cancellation still need handling.</p>
+<div class="detail">
+<h4>Which code goes away?</h4><p><strong>Inference from the current adapters and generator:</strong> both app teams can remove the async-only adapter around a migrated synchronous Rust API. The Kotlin example below uses withContext around the generated synchronous list call; the Swift example queues that call and delivers a completion callback. An async Rust export instead produces a generated suspend function in Kotlin and an async function in Swift. UniFFI owns that bridging code. An adapter may still be useful if it also owns a serial queue, database setup, domain conversions, UI updates, or error policy; those responsibilities must be kept or moved deliberately.</p><h4>What “async by default” means here</h4>
+<p><strong>Proposal:</strong> use async component APIs where operations wait, with app-provided scheduling for spawned and blocking work. This is not a shipped UniFFI switch that makes every synchronous function non-blocking. The design PDF, pages 7–8, discusses this approach and a separate alternative: generate adapters around sync Rust. Those generated adapters would reduce handwritten Kotlin/Swift code, but a running blocking call would still occupy a worker. The proposed wrap_async / async_wrap attributes and executor APIs are sketches, not usable code at the inspected revision. Small synchronous functions can remain synchronous.</p>
+<h4>Current adapters, in actual app code</h4>
+<p><strong>Observation:</strong> Firefox’s SyncableLoginsStorage chooses a dispatcher (Dispatchers.IO by default) and wraps calls with withContext. Firefox iOS’s RustLogins uses a serial DispatchQueue and completion handlers. These app-written adapters are separate from the bindings UniFFI generates.</p>
+<div class="code-example"><p class="code-source"><a href="https://github.com/mozilla-firefox/firefox/blob/38dd46150994b7c806866cfeb199526035162757/mobile/android/android-components/components/service/sync-logins/src/main/java/mozilla/components/service/sync/logins/SyncableLoginsStorage.kt#L171-L174" target="_blank" rel="noopener">Firefox: Kotlin adapter around a synchronous storage call</a></p><pre><code>override suspend fun list(): List&lt;Login&gt; =
+    withContext(coroutineContext) {
+        tryWithStorageOr(listOf()) { list().map { it.toLogin() } }
+    }</code></pre></div>
+<div class="code-example"><p class="code-source"><a href="https://github.com/mozilla-mobile/firefox-ios/blob/f50207d4d0468b29a24e10e050096763847310e6/firefox-ios/Storage/Rust/RustLogins.swift#L459-L474" target="_blank" rel="noopener">Firefox iOS: queued synchronous storage call and completion handler</a></p><pre><code>public func listLogins(completionHandler: @escaping @Sendable (Result&lt;[Login], Error&gt;) -&gt; Void) {
+    queue.async {
+        guard self.isOpen else {
+            let error = LoginsStoreError.UnexpectedLoginsApiError(reason: &quot;Database is closed&quot;)
+            completionHandler(.failure(error))
+            return
+        }
+
+        do {
+            let records = try self.storage?.list()
+            completionHandler(.success(records ?? []))
+        } catch let err as NSError {
+            completionHandler(.failure(err))
+        }
+    }
+}</code></pre></div>
+<p><strong>Impact on Kotlin and Swift:</strong> migrated APIs can be called from a coroutine or awaited in a Swift Task using the generated bindings. UI code still starts that work in an appropriate scope and chooses its lifetime. Domain logic, error handling, actor/thread requirements, and blocking-work dispatch do not disappear. A suspend function alone selects neither Dispatchers.IO nor a lifecycle; a Swift async function alone is not a dedicated worker thread. The <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/kotlin/templates/macros.kt#L50-L55" target="_blank" rel="noopener">Kotlin generator</a> and <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/swift/templates/macros.swift#L187-L189" target="_blank" rel="noopener">Swift generator</a> already select async syntax for async Rust exports.</p>
+<h4>Christian’s questions become things to verify</h4>
+<p>The supplied <em>Notes – Async Android Feedback</em>, pages 1–2 (28 July 2026), asks who starts the coroutine, which app-managed threads run the work, how lifecycle changes stop it, whether callbacks remain safe, and how an app developer debugs failures. The following requirements are a synthesis of those questions and the inspected code, rather than claims that the proposal has already solved them.</p>
+<table><thead><tr><th>Concern</th><th>What to establish</th></tr></thead><tbody>
+<tr><th>Task and thread ownership</th><td>The app chooses the outer Job/Task, executor, and shutdown rules. Route Rust requests for spawned or blocking work through an agreed app-owned interface. Bound the blocking queue. A dispatcher chooses execution; a Job/scope controls cancellation and lifetime. They are different responsibilities.</td></tr>
+<tr><th>Dangling pointers and late callbacks</th><td>Keep Rust objects, buffers, foreign continuations, and callback targets owned until their last user is done. Coordinate completion and cancellation so handles/results are released exactly once. A callback arriving after cancellation must not access a freed object or update a destroyed screen. Do not drop resources while a worker still uses them.</td></tr>
+<tr><th>Work after cancellation</th><td>Stop polling and free the future; also propagate cancellation to child tasks and the actual I/O operation. Remove queued work before it starts. Already-running blocking work needs an explicit interrupt/cooperative stop mechanism; define what happens when it cannot stop immediately. Cancellation cannot undo writes or requests already sent.</td></tr>
+<tr><th>Debugging and lifecycle tests</th><td>Correlate one operation across app and Rust logs, with task/thread identity, completion, cancellation, and errors. Exercise cancellation before/during/after poll, completion races, leaving and returning to the screen, backgrounding, Activity recreation, and process death/restart. Check resources and remaining work, not only whether the UI stopped waiting.</td></tr>
+</tbody></table>
+<p><strong>Existing ownership mechanism:</strong> UniFFI retains the future and the values it owns across polls. The exported future must satisfy these bounds:</p>
+<div class="code-example"><p class="code-source"><a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_core/src/ffi/rustfuture/future.rs#L194-L197" target="_blank" rel="noopener">The future cannot borrow a short-lived caller stack</a></p><pre><code>pub fn new&lt;F, T, UT&gt;(future: F, _tag: UT) -&gt; Self
+where
+    F: UniffiCompatibleFuture&lt;Result&lt;T, LiftArgsError&gt;&gt; + &#x27;static,
+    T: FutureLowerReturn&lt;UT, ReturnType = FfiType&gt;,</code></pre></div>
+<p>The 'static bound means the future cannot depend on a borrow that expires with the calling stack frame; it does not mean the allocation lives forever. UniFFI <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_core/src/ffi/rustfuture/future.rs#L137-L140" target="_blank" rel="noopener">boxes the future</a> and <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_core/src/ffi/rustfuture/future.rs#L235-L240" target="_blank" rel="noopener">coordinates freeing it with poll</a>. This protects the bridge’s owned state; it is not a guarantee that arbitrary backend code, UI callbacks, or spawned workers follow the app’s lifecycle.</p>
+<p><strong>Gaps visible today:</strong> Kotlin’s outward helper supports cancelling its wait, while <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/swift/templates/Async.swift#L6-L38" target="_blank" rel="noopener">Swift’s outward helper</a> does not connect Task cancellation to that cleanup. The <a href="https://github.com/mozilla/uniffi-rs/blob/0d732ee489c129fdd4baf82355649f453df7f9fc/uniffi_bindgen/src/bindings/kotlin/templates/Async.kt#L49-L79" target="_blank" rel="noopener">reverse Kotlin bridge</a> launches a GlobalScope coroutine, and the <a href="https://github.com/mozilla/application-services/blob/ff9a6fa10723864a95613bc97c2b17328484c996/components/support/viaduct-hyper/src/lib.rs#L38-L50" target="_blank" rel="noopener">iOS Hyper backend</a> creates a Rust-owned Tokio worker. The proposed app-control requirement needs to account for these paths too; changing the outer function signature does not fix them.</p>
+<p><strong>Testing clarification:</strong> the notes group several lifecycle events together. Android’s <a href="https://developer.android.com/studio/debug/dev-options#apps" target="_blank" rel="noopener">Don’t keep activities option</a> destroys Activities when they are left; it is not a force-stop or process-death test. Test those separately. No new Android/iOS runtime experiment was performed for this slide.</p>
+</div>
+</aside>
+</div>
+</section>
+</article>
+</main>
+<script src="vendor/webslides.js">
+</script>
+<script src="deck.js">
+</script>
+</body>
+</html>

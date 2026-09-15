@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 270" role="img">
+<title>An async function can pause and continue</title>
+<desc>The future first owns who. While black_box is pending, it keeps the awaited future and the name. A later poll can finish the operation and return the greeting. The diagram shows conceptual states, not the exact compiler-generated layout.</desc>
+<style>text { font: 20px Arial, sans-serif; fill: #152a40; }
+.box-title { font-weight: 600; font-size: 23px; }
+.box rect { fill: #e7ecfa; stroke: #b9c6e9; stroke-width: 1.5px; }
+.foreign rect { fill: #e8f3ee; stroke: #abcbbd; }
+.bridge rect { fill: #f0eef8; stroke: #c9c2de; }
+.wait rect { fill: #f8eded; stroke: #d4b3b3; }
+.arrow { fill: none; stroke: #536179; stroke-width: 2px; }
+.dashed { stroke-dasharray: 6 5; }
+.edge-label { font-size: 19px; }
+.lane-title { font-size: 24px; font-weight: 600; }
+.lifeline { fill: none; stroke: #b4bed0; stroke-width: 2px; stroke-dasharray: 4 5; }
+.idle-band { fill: #e8f3ee; }
+.idle-text { font-size: 20px; fill: #20583f; }</style>
+<defs>
+<marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+<path d="M0 0 L8 4 L0 8 z" fill="#536179"/>
+</marker>
+</defs>
+<g class="box native">
+<rect x="0" y="30" width="290" height="150" rx="8"/>
+<text x="18" y="61" class="box-title" text-anchor="start">Before the first poll</text>
+<text x="18" y="90" class="" text-anchor="start">It stores who.</text>
+<text x="18" y="115" class="" text-anchor="start">The body has not run.</text>
+</g>
+<path class="arrow " d="M290,105 L415,105" marker-end="url(#arrow)"/>
+<text x="352.5" y="95.0" class="edge-label" text-anchor="middle">poll</text>
+<g class="box native">
+<rect x="415" y="30" width="290" height="150" rx="8"/>
+<text x="433" y="61" class="box-title" text-anchor="start">Waiting at the await</text>
+<text x="433" y="90" class="" text-anchor="start">Rust keeps the awaited</text>
+<text x="433" y="115" class="" text-anchor="start">future and the name to</text>
+<text x="433" y="140" class="" text-anchor="start">continue later.</text>
+</g>
+<path class="arrow " d="M705,105 L830,105" marker-end="url(#arrow)"/>
+<text x="767.5" y="95.0" class="edge-label" text-anchor="middle">poll</text>
+<g class="box native">
+<rect x="830" y="30" width="290" height="150" rx="8"/>
+<text x="848" y="61" class="box-title" text-anchor="start">When the work finishes</text>
+<text x="848" y="90" class="" text-anchor="start">Rust builds the greeting</text>
+<text x="848" y="115" class="" text-anchor="start">and returns it.</text>
+</g>
+<text x="560" y="240" class="edge-label" text-anchor="middle">When the awaited future can make progress, it asks for another poll.</text>
+<path class="arrow" d="M560,185 L560,215 L365,215 L365,140 L410,140" marker-end="url(#arrow)"/>
+</svg>

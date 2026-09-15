@@ -1,0 +1,114 @@
+:root {
+  color-scheme: light;
+  --paper: #fafcfe;
+  --ink: #152a40;
+  --muted: #526078;
+  --blue: #3357b8;
+  --line: #cfd2d9;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--paper); color: var(--ink); font-family: Arial, sans-serif; }
+body { margin: 0; }
+a { color: var(--blue); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { text-decoration: underline; }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--blue); outline-offset: 4px; }
+:is(#webslides, #webslides-zoomed) > section { background: var(--paper); padding: 68px 0 65px; }
+.slide-content { width: min(1180px, calc(100vw - 96px)); margin: auto; }
+:is(#webslides, #webslides-zoomed) h1 { font-family: Arial, sans-serif; font-weight: 400; font-size: clamp(32px, 3.2vw, 48px); line-height: 1.12; color: var(--blue); letter-spacing: -.025em; margin: 0 0 19px; padding: 0 0 17px; border-bottom: 1px solid var(--ink); }
+:is(#webslides, #webslides-zoomed) h2 { font-size: 25px; font-weight: 500; line-height: 1.2; margin: 0 0 12px; }
+:is(#webslides, #webslides-zoomed) p { margin: 0 0 14px; padding: 0; }
+:is(#webslides, #webslides-zoomed) .lead { font-size: clamp(22px, 2vw, 28px); line-height: 1.3; }
+:is(#webslides, #webslides-zoomed) .takeaway { font-size: clamp(22px, 2vw, 27px); line-height: 1.3; margin-top: 14px; }
+:is(#webslides, #webslides-zoomed) .small { font-size: 16px; line-height: 1.4; color: var(--muted); }
+.two-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 38px; align-items: center; }
+.two-columns > * { min-width: 0; }
+.intro-copy { font-size: 32px; line-height: 1.3; padding-left: 24px; }
+:is(#webslides, #webslides-zoomed) .intro-copy p { margin-bottom: 18px; }
+.intro-copy .muted { font-size: 23px; color: var(--muted); }
+:is(#webslides, #webslides-zoomed) .code-source { display: none; font-size: 15px; line-height: 1.4; margin-bottom: 8px; }
+:is(#webslides, #webslides-zoomed) pre { display: block; width: auto; padding: 18px 22px; margin: 0 0 14px; font-size: 22px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--line); background: #edf1f8; border-radius: 6px; box-shadow: none; color: var(--ink); text-align: left; }
+:is(#webslides, #webslides-zoomed) code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; background: transparent; color: inherit; padding: 0; }
+:is(#webslides, #webslides-zoomed) .two-columns pre { font-size: 20px; }
+:is(#webslides, #webslides-zoomed) section:last-of-type .two-columns { align-items: start; }
+:is(#webslides, #webslides-zoomed) section:last-of-type pre { font-size: 16px; line-height: 1.3; }
+.diagram { display: block; width: 100%; height: auto; max-height: 49vh; overflow: visible; margin: 8px auto 0; }
+:is(#webslides, #webslides-zoomed) footer.sources { position: static; display: none; width: auto; margin: 18px 0 0; padding: 0; color: var(--muted); font: 13px/1.6 Arial, sans-serif; text-align: left; }
+:is(#webslides, #webslides-zoomed) table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 18px; line-height: 1.35; background: transparent; }
+:is(#webslides, #webslides-zoomed) th, :is(#webslides, #webslides-zoomed) td { background: transparent; text-align: left; border: none; border-bottom: 1px solid var(--line); padding: 10px 12px; font-weight: 400; }
+:is(#webslides, #webslides-zoomed) th { font-weight: 600; }
+#navigation { background: var(--paper) !important; bottom: 8px; padding: 0; }
+#navigation a, #counter a { color: var(--blue); }
+.speaker-notes, .reading-intro { display: none; }
+body.notes-mode { overflow: auto !important; }
+.notes-mode #webslides .code-source, .notes-mode #webslides footer.sources { display: block; }
+.notes-mode .reading-intro { display: block; max-width: 980px; margin: 50px auto; padding: 0 24px; font-size: 20px; line-height: 1.5; }
+.notes-mode .reading-intro h1 { font-size: 40px; color: var(--blue); margin-bottom: 20px; }
+.notes-mode :is(#webslides, #webslides-zoomed) { transform: none !important; overflow: visible !important; }
+.notes-mode :is(#webslides, #webslides-zoomed) > section { display: block !important; position: static !important; height: auto !important; min-height: 0; padding: 36px 0; border-top: 1px solid var(--line); }
+.notes-mode .slide-content { width: min(980px, calc(100vw - 48px)); }
+.notes-mode .diagram { max-height: none; }
+.notes-mode .speaker-notes { display: block; font-size: 21px; line-height: 1.5; border-left: 4px solid var(--blue); margin: 30px 0; padding: 12px 0 12px 24px; }
+.notes-mode .speaker-notes h3 { font-size: 23px; margin-bottom: 14px; }
+.notes-mode .speaker-notes h4 { font-size: 19px; margin: 24px 0 12px; }
+.notes-mode .detail { font-size: 18px; color: var(--muted); }
+.notes-mode code { overflow-wrap: anywhere; }
+@media (max-width: 800px) {
+  .slide-content { width: calc(100vw - 32px); }
+  :is(#webslides, #webslides-zoomed) > section { padding: 95px 0 70px; }
+  .two-columns { grid-template-columns: 1fr; gap: 18px; }
+  .intro-copy { padding-left: 0; font-size: 24px; }
+  .intro-copy .muted { font-size: 20px; }
+  :is(#webslides, #webslides-zoomed) pre, :is(#webslides, #webslides-zoomed) .two-columns pre { font-size: 17px; }
+  .diagram { max-height: none; min-width: 700px; }
+  .diagram-wrap { overflow-x: auto; }
+  :is(#webslides, #webslides-zoomed) footer.sources { font-size: 13px; }
+  #navigation a, #counter { display: block; }
+  #navigation { animation: none !important; }
+  .notes-mode .slide-content { width: calc(100vw - 32px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+@media print {
+  @page { size: landscape; margin: 10mm; }
+  html, body, :is(#webslides, #webslides-zoomed) { height: auto !important; overflow: visible !important; }
+  #navigation, #webslides-zoomed, .reading-intro { display: none !important; }
+  :is(#webslides, #webslides-zoomed) > section { display: block !important; opacity: 1 !important; position: static !important; visibility: visible !important; transform: none !important; min-height: 0 !important; height: auto !important; padding: 0 !important; break-after: page; }
+  .slide-content, .notes-mode .slide-content { width: 100% !important; margin: 0; }
+  :is(#webslides, #webslides-zoomed) h1 { font-size: 30px; }
+  :is(#webslides, #webslides-zoomed) .lead, :is(#webslides, #webslides-zoomed) .takeaway { font-size: 20px; }
+  .diagram { max-height: 105mm; min-width: 0; }
+  :is(#webslides, #webslides-zoomed) pre { font-size: 16px; }
+  :is(#webslides, #webslides-zoomed) .two-columns pre { font-size: 15px; }
+  .sources a { color: var(--blue); }
+  .speaker-notes { display: none; }
+  .notes-mode .speaker-notes { display: block; }
+  #webslides > section:last-of-type { break-after: auto; }
+}
+/* Fit the fixed composition to a projector without clipping its content. */
+@media screen and (min-width: 801px) {
+  body:not(.notes-mode) :is(#webslides, #webslides-zoomed) > section { height: 100vh; padding: 0; }
+  body:not(.notes-mode) :is(#webslides, #webslides-zoomed) > section > .slide-content {
+    position: absolute;
+    width: 1180px;
+    max-width: none;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(var(--slide-scale, 1));
+  }
+}
+:is(#webslides, #webslides-zoomed) [data-slide="3"] pre { font-size: 20px; line-height: 1.25; }
+:is(#webslides, #webslides-zoomed) [data-slide="3"] .diagram { height: 245px; }
+:is(#webslides, #webslides-zoomed) [data-slide="10"] .two-columns { align-items: start; }
+:is(#webslides, #webslides-zoomed) [data-slide="10"] pre { font-size: 18px; line-height: 1.35; padding: 14px 18px; }
+:is(#webslides, #webslides-zoomed) thead, :is(#webslides, #webslides-zoomed) tr, :is(#webslides, #webslides-zoomed) th { background: transparent; text-transform: none; }
+#navigation { z-index: 30; position: fixed; opacity: 1; animation: none; }
+.diagram:hover { opacity: 1; }
+#webslides-zoomed .speaker-notes { display: none; }
+#webslides-zoomed .slide-content { width: 90%; }
+#webslides-zoomed { background: var(--paper); }
+#webslides-zoomed .text-slide-number { color: var(--muted); }
+@media (max-width: 800px) {
+  :is(#webslides, #webslides-zoomed) table { table-layout: fixed; font-size: 14px; }
+  :is(#webslides, #webslides-zoomed) th, :is(#webslides, #webslides-zoomed) td { overflow-wrap: anywhere; padding: 8px 6px; }
+}

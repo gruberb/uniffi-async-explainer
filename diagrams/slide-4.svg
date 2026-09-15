@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 405" role="img"><title>A synchronous call occupies its calling thread</title><desc>Kotlin calls Rust through JNA; Swift makes a direct native C call. Each path stays on its calling thread. Both generated bindings encode text as UTF-8 in a RustBuffer; generated Rust code takes ownership as a String. The result returns through those same calls.</desc><style>text {font:20px Arial,sans-serif;fill:#152a40}.heading{font-size:23px;font-weight:600}.box rect{fill:#e7ecfa;stroke:#b9c6e9;stroke-width:1.5px}.app rect{fill:#e8f3ee;stroke:#abcbbd}.sync rect{fill:#f8eded;stroke:#d4b3b3}.bridge rect{fill:#f0eef8;stroke:#c9c2de}.arrow{fill:none;stroke:#536179;stroke-width:2px}.green{fill:#20583f}</style><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#536179"/></marker></defs>
+<text x="0" y="26" class="heading" text-anchor="start">Fenix / Kotlin: one calling thread</text>
+<g class="box app"><rect x="0" y="44" width="300" height="103" rx="8"/><text x="18" y="73" class="heading" text-anchor="start">Kotlin bindings</text><text x="18" y="100" class="" text-anchor="start">Encode the text as UTF-8</text><text x="18" y="125" class="" text-anchor="start">and pass a RustBuffer.</text></g>
+<path class="arrow" d="M302 95 H335" marker-end="url(#arrow)"/>
+<g class="box bridge"><rect x="345" y="44" width="320" height="103" rx="8"/><text x="363" y="73" class="heading" text-anchor="start">JNA / native C call</text><text x="363" y="100" class="" text-anchor="start">Uses the calling thread.</text></g>
+<path class="arrow" d="M667 95 H700" marker-end="url(#arrow)"/>
+<g class="box "><rect x="710" y="44" width="410" height="103" rx="8"/><text x="728" y="73" class="heading" text-anchor="start">Rust FFI → our function</text><text x="728" y="100" class="" text-anchor="start">RustBuffer → Rust String</text><text x="728" y="125" class="" text-anchor="start">Calls our Rust function.</text></g>
+<path class="arrow" d="M1080 166 H30" marker-end="url(#arrow)"/>
+<text x="560" y="192" class="" text-anchor="middle">The result returns along the same call path.</text>
+<text x="0" y="227" class="heading" text-anchor="start">Firefox iOS / Swift: one calling thread</text>
+<g class="box app"><rect x="0" y="245" width="300" height="103" rx="8"/><text x="18" y="274" class="heading" text-anchor="start">Swift bindings</text><text x="18" y="301" class="" text-anchor="start">Encode the text as UTF-8</text><text x="18" y="326" class="" text-anchor="start">and pass a RustBuffer.</text></g>
+<path class="arrow" d="M302 296 H335" marker-end="url(#arrow)"/>
+<g class="box bridge"><rect x="345" y="245" width="320" height="103" rx="8"/><text x="363" y="274" class="heading" text-anchor="start">Direct native C call</text><text x="363" y="301" class="" text-anchor="start">Uses the calling thread.</text></g>
+<path class="arrow" d="M667 296 H700" marker-end="url(#arrow)"/>
+<g class="box "><rect x="710" y="245" width="410" height="103" rx="8"/><text x="728" y="274" class="heading" text-anchor="start">Rust FFI → our function</text><text x="728" y="301" class="" text-anchor="start">RustBuffer → Rust String</text><text x="728" y="326" class="" text-anchor="start">Calls our Rust function.</text></g>
+<path class="arrow" d="M1080 367 H30" marker-end="url(#arrow)"/>
+<text x="560" y="393" class="" text-anchor="middle">The result returns along the same call path.</text>
+</svg>
