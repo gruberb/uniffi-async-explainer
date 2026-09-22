@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 420" role="img">
 <title>The future lives in the app’s memory</title>
-<desc>Each OS thread has a stack. During poll, the Rust calls use that stack. UniFFI owns the boxed future on the Rust heap, including its captured values. The String points to another allocation for its bytes. Kotlin or Swift keeps the waiting coroutine or task and a handle to the future. All this memory belongs to the same app process.</desc>
+<desc>The foreign runtime schedules its async task to poll Rust across the FFI. When poll returns and the task suspends, the same thread can run other tasks. The task owns a handle to the future stored on the Rust heap by UniFFI. Its captured values survive between polls. All this memory belongs to the same app process.</desc>
 <style>text { font: 20px Arial, sans-serif; fill: #152a40; }
 .box-title { font-weight: 600; font-size: 23px; }
 .box rect { fill: #e7ecfa; stroke: #b9c6e9; stroke-width: 1.5px; }
@@ -23,12 +23,13 @@
 <text x="20" y="32" class="lane-title" text-anchor="start">One Fenix or Firefox iOS app process</text>
 <g class="box bridge">
 <rect x="20" y="65" width="310" height="245" rx="8"/>
-<text x="38" y="96" class="box-title" text-anchor="start">A thread’s stack</text>
-<text x="38" y="125" class="" text-anchor="start">A call into Rust uses</text>
-<text x="38" y="150" class="" text-anchor="start">this thread’s stack.</text>
-<text x="38" y="175" class="" text-anchor="start">Its Rust call frames</text>
-<text x="38" y="200" class="" text-anchor="start">go away when poll</text>
-<text x="38" y="225" class="" text-anchor="start">returns.</text>
+<text x="38" y="96" class="box-title" text-anchor="start">Foreign async task</text>
+<text x="38" y="125" class="" text-anchor="start">The runtime schedules a</text>
+<text x="38" y="150" class="" text-anchor="start">poll call across the FFI.</text>
+<text x="38" y="175" class="" text-anchor="start">When poll returns and</text>
+<text x="38" y="200" class="" text-anchor="start">the task suspends, the</text>
+<text x="38" y="225" class="" text-anchor="start">same thread can run</text>
+<text x="38" y="250" text-anchor="start">other tasks.</text>
 </g>
 <g class="box native">
 <rect x="395" y="65" width="330" height="245" rx="8"/>
@@ -45,8 +46,8 @@
 <text x="808" y="125" class="" text-anchor="start">The coroutine or task keeps</text>
 <text x="808" y="150" class="" text-anchor="start">its values and the place</text>
 <text x="808" y="175" class="" text-anchor="start">where it will continue.</text>
-<text x="808" y="200" class="" text-anchor="start">The bindings keep a handle</text>
-<text x="808" y="225" class="" text-anchor="start">for finding the Rust future.</text>
+<text x="808" y="200" class="" text-anchor="start">The task owns the handle</text>
+<text x="808" y="225" class="" text-anchor="start">to UniFFI’s Rust future.</text>
 </g>
 <path class="arrow " d="M330,170 L395,170" marker-end="url(#arrow)"/>
 <text x="362.5" y="159" class="edge-label" text-anchor="middle">poll</text>

@@ -16,7 +16,7 @@ assert(url, 'Pass the served deck URL, including index.html');
     await page.goto(url);
     await page.waitForFunction(() => window.ws?.initialised);
     const count = await page.locator('#webslides > section').count();
-    assert.equal(count, 11);
+    assert.equal(count, 10);
     for (let i = 0; i < count; i++) {
       await page.evaluate(i => ws.goToSlide(i), i);
       await page.waitForFunction(i => !ws.isMoving && document.querySelector('section.current')?.dataset.slide === String(i + 1), i);
@@ -26,7 +26,7 @@ assert(url, 'Pass the served deck URL, including index.html');
       assert(await page.locator('section.current img').evaluateAll(images => images.every(image => image.complete && image.naturalWidth > 0)), `Slide ${i + 1} image missing`);
     }
     await page.keyboard.press('ArrowLeft');
-    await page.waitForFunction(() => !ws.isMoving && document.querySelector('section.current').dataset.slide === '10');
+    await page.waitForFunction(() => !ws.isMoving && document.querySelector('section.current').dataset.slide === '9');
     await page.locator('#counter a').click();
     await page.waitForFunction(() => document.querySelector('#webslides-zoomed').classList.contains('in'));
     await page.locator('#webslides-zoomed .column').first().click();
@@ -56,7 +56,7 @@ assert(url, 'Pass the served deck URL, including index.html');
     }
     assert.deepEqual(errors, []);
     assert.deepEqual(external, [], 'The deck must work without external assets');
-    console.log('WebSlides: 11 slides, navigation, overview, notes, mobile layout, and SVG labels passed.');
+    console.log('WebSlides: 10 slides, navigation, overview, notes, mobile layout, and SVG labels passed.');
   } finally {
     await browser.close();
   }

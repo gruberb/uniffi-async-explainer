@@ -1,20 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 330" role="img">
-<title>The app supplies the async operation</title>
-<desc>Kotlin and Swift tests pass an AsyncParser and 42 to Rust. Rust awaits the app implementation and returns its String result to the original caller.</desc>
+<title>Viaduct calls the Android HTTP backend</title>
+<desc>Viaduct awaits the registered Android FetchBackend through UniFFI. Kotlin calls the blocking fetch API and returns a Response to Rust.</desc>
 <style>text{font:20px Arial,sans-serif;fill:#152a40}.heading{font-size:23px;font-weight:600}.box rect{fill:#e7ecfa;stroke:#b9c6e9;stroke-width:1.5px}.app rect{fill:#e8f3ee;stroke:#abcbbd}.arrow{fill:none;stroke:#536179;stroke-width:2px}</style>
 <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#536179"/></marker></defs>
 <g class="box app"><rect x="0" y="25" width="300" height="160" rx="8"/>
-<text x="18" y="58" class="heading">App caller</text><text x="18" y="90">Kotlin or Swift code</text><text x="18" y="119">Passes an AsyncParser</text><text x="18" y="148">and the number 42.</text></g>
+<text x="18" y="58" class="heading">Rust component</text><text x="18" y="90">Makes an HTTP request.</text><text x="18" y="119">Calls Viaduct’s</text><text x="18" y="148">async Client::send.</text></g>
 <path class="arrow" d="M302 105 H385" marker-end="url(#arrow)"/>
 <text x="345" y="92" text-anchor="middle">calls</text>
 <g class="box"><rect x="395" y="25" width="310" height="160" rx="8"/>
-<text x="413" y="58" class="heading">Rust component</text><text x="413" y="90">Awaits obj.as_string(...).</text><text x="413" y="119">Keeps waiting until</text><text x="413" y="148">the app returns a String.</text></g>
+<text x="413" y="58" class="heading">Viaduct (Rust)</text><text x="413" y="90">Awaits the registered</text><text x="413" y="119">Backend::send_request.</text><text x="413" y="148">Receives a Response.</text></g>
 <path class="arrow" d="M707 105 H790" marker-end="url(#arrow)"/>
 <text x="750" y="92" text-anchor="middle">awaits</text>
 <g class="box app"><rect x="800" y="25" width="320" height="160" rx="8"/>
-<text x="818" y="58" class="heading">App implementation</text><text x="818" y="90">Kotlin: delay(...)</text><text x="818" y="119">Swift: Task.sleep(...)</text><text x="818" y="148">Converts 42 into “42”.</text></g>
+<text x="818" y="58" class="heading">Android FetchBackend</text><text x="818" y="90">Kotlin: suspend sendRequest</text><text x="818" y="119">Calls blocking fetch(...).</text><text x="818" y="148">Returns a Response.</text></g>
 <path class="arrow" d="M960 187 V239 H560 V187" marker-end="url(#arrow)"/>
-<text x="760" y="271" text-anchor="middle">UniFFI gives the result back to Rust.</text>
+<text x="760" y="271" text-anchor="middle">UniFFI returns the response to Rust.</text>
 <path class="arrow" d="M445 187 V295 H150 V187" marker-end="url(#arrow)"/>
-<text x="298" y="325" text-anchor="middle">The caller receives “42”.</text>
+<text x="298" y="325" text-anchor="middle">The component receives the response.</text>
 </svg>
